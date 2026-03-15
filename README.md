@@ -1,110 +1,132 @@
-ImageHash
-=========
+# ImageHash — Pure GD Fork
 
-[![Latest Stable Version](http://img.shields.io/github/release/jenssegers/imagehash.svg)](https://packagist.org/packages/jenssegers/imagehash) [![Build Status](http://img.shields.io/travis/jenssegers/imagehash.svg)](https://travis-ci.org/jenssegers/imagehash) [![Coverage Status](http://img.shields.io/coveralls/jenssegers/imagehash.svg)](https://coveralls.io/r/jenssegers/imagehash) [![Donate](https://img.shields.io/badge/donate-paypal-blue.svg)](https://www.paypal.me/jenssegers)
+[![PHP](https://img.shields.io/badge/php-%3E%3D8.3-blue)](https://php.net)
 
-> A perceptual hash is a fingerprint of a multimedia file derived from various features from its content. Unlike cryptographic hash functions which rely on the avalanche effect of small changes in input leading to drastic changes in the output, perceptual hashes are "close" to one another if the features are similar.
+A perceptual image hashing library for PHP. Compute and compare image fingerprints to detect
+visually similar or identical images.
 
-<p align="center"><img src="https://jenssegers.com/static/media/fingerprint.png"></p>
+This is a **vendor fork** of [jenssegers/imagehash](https://github.com/jenssegers/imagehash)
+(v0.11.0, Sep 2025), rewritten to use **pure GD** — no `intervention/image`, no `phpseclib`,
+no external dependencies beyond `ext-gd`.
 
-Perceptual hashes are a different concept compared to cryptographic hash functions like MD5 and SHA1. With cryptographic hashes, the hash values are random. The data used to generate the hash acts like a random seed, so the same data will generate the same result, but different data will create different results. Comparing two SHA1 hash values really only tells you two things. If the hashes are different, then the data is different. And if the hashes are the same, then the data is likely the same. In contrast, perceptual hashes can be compared -- giving you a sense of similarity between the two data sets.
+## What Changed vs Upstream
 
-This code was inspired/based on:
- - https://github.com/kennethrapp/phasher
- - http://www.phash.org
- - http://blockhash.io
- - http://www.hackerfactor.com/blog/?/archives/529-Kind-of-Like-That.html
- - http://www.hackerfactor.com/blog/?/archives/432-Looks-Like-It.html
- - http://blog.iconfinder.com/detecting-duplicate-images-using-python
+| Area | Upstream | This fork |
+|------|----------|-----------|
+| Image loading | `intervention/image` (GD or Imagick backend) | Direct GD: `imagecreatefromstring()`, `imagescale()`, `imagecolorat()` |
+| Dependencies | `intervention/image` ^3.3, `intervention/gif` (transitive) | **None** — only `ext-gd` |
+| Input types | File path only (`ImageManager::read()`) | File path, URL, raw binary string, or `\GdImage` instance |
+| Implementation interface | `hash(Intervention\Image\Image $image): Hash` | `hash(\GdImage $image): Hash` |
+| PHP version | ^8.2 | >=8.3 |
+| Algorithms | AverageHash, DifferenceHash, PerceptualHash, BlockHash | Same four, same logic, GD pixel access |
 
-Requirements
-------------
+### Why fork?
 
- - PHP 8.1 or higher
- - The [gd](http://php.net/manual/en/book.image.php) or [imagick](http://php.net/manual/en/book.imagick.php) extension
- - Optionally, install the [GMP](http://php.net/manual/en/book.gmp.php) extension for faster fingerprint comparisons
+- **`intervention/image` is unnecessary overhead** for the trivial operations needed (resize to
+  8×8 or 32×32, read pixel RGB). Direct GD is ~4x faster per
+  [benchmarks](https://github.com/jenssegers/imagehash/issues/50).
+- **No in-memory hashing** — upstream only accepts file paths. We need to hash `\GdImage`
+  resources that are already in memory during import pipelines.
+- **Upstream is semi-maintained** — 35+ open issues, no release since 2023, known integer
+  overflow bugs ([#62](https://github.com/jenssegers/imagehash/issues/62),
+  [#90](https://github.com/jenssegers/imagehash/issues/90),
+  [#93](https://github.com/jenssegers/imagehash/issues/93)).
 
-Installation
-------------
+## Credits
 
-*This package has not reached a stable version yet, backwards compatibility may be broken between 0.x releases. Make sure to lock your version if you intend to use this in production!*
+- **[Jens Segers](https://github.com/jenssegers)** — original `jenssegers/imagehash` library,
+  algorithm implementations, `Hash` value object, and test image corpus
+- **[Kenneth Rapp / kennethrapp](https://github.com/kennethrapp/phasher)** — original pHasher
+  project that inspired the upstream library
+- **[VincentChalnot](https://github.com/VincentChalnot/imagehash)** — upstream fork that removed
+  `phpseclib` dependency and introduced `getIntegers()` for pure-PHP integer representation
+  (merged into upstream `Hash.php` which this fork inherits)
+- **Algorithm references**:
+  - http://www.phash.org — pHash algorithm specification
+  - http://blockhash.io — BlockHash algorithm
+  - http://www.hackerfactor.com/blog/?/archives/529-Kind-of-Like-That.html — DifferenceHash
+  - http://www.hackerfactor.com/blog/?/archives/432-Looks-Like-It.html — AverageHash
 
-Install using composer:
+## Requirements
 
-	composer require jenssegers/imagehash
+- PHP >= 8.3
+- ext-gd
+- Optionally ext-gmp (faster Hamming distance computation)
 
-Usage
------
+## Installation
 
-The library comes with 4 built-in hashing implementations:
+This library is intended as a Composer VCS fork:
 
- - `Jenssegers\ImageHash\Implementations\AverageHash` - Hash based the average image color
- - `Jenssegers\ImageHash\Implementations\DifferenceHash` - Hash based on the previous pixel
- - `Jenssegers\ImageHash\Implementations\BlockHash` - Hash based on blockhash.io **Still under development**
- - `Jenssegers\ImageHash\Implementations\PerceptualHash` - The original pHash **Still under development**
+```json
+{
+    "repositories": {
+        "jenssegers/imagehash": {
+            "type": "vcs",
+            "url": "git@github.com:lyk-antrop/jenssegers-imagehash.git"
+        }
+    },
+    "require": {
+        "jenssegers/imagehash": "dev-master"
+    }
+}
+```
 
-Choose one of these implementations. If you don't know which one to use, try the `DifferenceHash` implementation. Some implementations allow some configuration, be sure to check the constructor.
+## Usage
 
 ```php
 use Jenssegers\ImageHash\ImageHash;
 use Jenssegers\ImageHash\Implementations\DifferenceHash;
+use Jenssegers\ImageHash\Implementations\PerceptualHash;
 
+// Create a hasher with any implementation
 $hasher = new ImageHash(new DifferenceHash());
-$hash = $hasher->hash('path/to/image.jpg');
 
-echo $hash;
-// or
-echo $hash->toHex();
-```
+// Hash from a file path
+$hash = $hasher->hash('/path/to/image.jpg');
+echo $hash->toHex();  // e.g. "3c3e0e1a3a1e1e0e"
 
-The resulting `Hash` object, is a hexadecimal image fingerprint that can be stored in your database once calculated. The hamming distance is used to compare two image fingerprints for similarities. Low distance values will indicate that the images are similar or the same, high distance values indicate that the images are different. Use the following method to detect if images are similar or not:
+// Hash from a URL
+$hash = $hasher->hash('https://example.com/photo.jpg');
 
-```php
-$distance = $hasher->distance($hash1, $hash2);
-// or
+// Hash from raw image bytes (e.g. HTTP response body)
+$hash = $hasher->hash($rawImageData);
+
+// Hash from an already-loaded GdImage
+$gd = imagecreatefromjpeg('/path/to/image.jpg');
+$hash = $hasher->hash($gd);
+
+// Compare two images
+$distance = $hasher->compare('/path/to/image1.jpg', '/path/to/image2.jpg');
+// distance 0 = identical, distance <= 5 = very similar, distance > 10 = different
+
+// Compare two hashes directly
 $distance = $hash1->distance($hash2);
 ```
 
-Equal images will not always have a distance of 0, so you will need to decide at which distance you will evaluate images as equal. For the image set that I tested, a max distance of 5 was acceptable. But this will depend on the implementation, the images and the number of images. For example; when comparing a small set of images, a lower maximum distances should be acceptable as the chances of false positives are quite low. If however you are comparing a large amount of images, 5 might already be too much.
+## Algorithms
 
-The `Hash` object can return the internal binary hash in a couple of different format:
+| Algorithm | Default Size | Hash Bits | Speed | Discrimination |
+|-----------|-------------|-----------|-------|----------------|
+| `AverageHash` | 8x8 | 64 | Fastest | Low — sensitive to gamma changes |
+| `DifferenceHash` | 9x8 | 64 | Fast | Good for general use |
+| `PerceptualHash` | 32x32 + DCT | 64 | Slower (~10-50ms) | Best — robust to resize, compression, watermarks |
+| `BlockHash` | 16x16 blocks | 256 | Medium | Good — works on full-resolution image |
+
+**Recommendation**: Use `PerceptualHash` for image deduplication. Use `DifferenceHash` when
+speed matters more than discrimination.
+
+## Hash Object
 
 ```php
-echo $hash->toHex(); // 7878787c7c707c3c
-echo $hash->toBits(); // 0111100001111000011110000111110001111100011100000111110000111100
-echo $hash->toInt(); // 8680820757815655484
-echo $hash->toBytes(); // "\x0F\x07ƒƒ\x03\x0F\x07\x00"
+$hash->toHex();        // Hexadecimal string (e.g. "3c3e0e1a3a1e1e0e")
+$hash->toBits();       // Binary string of 0s and 1s
+$hash->getIntegers();  // Array of PHP integers (splits hash to fit PHP_INT_SIZE)
+$hash->distance($other); // Hamming distance to another Hash
+$hash->equals($other);   // Exact equality check
+echo $hash;            // Implicit toHex() via __toString
+json_encode($hash);    // Serializes as hex string
 ```
 
-Choose your preference for storing your hashes in your database. If you want to reconstruct a `Hash` object from a previous calculated value, use:
+## License
 
-```php
-$hash = Hash::fromHex('7878787c7c707c3c');
-$hash = Hash::fromBin('0111100001111000011110000111110001111100011100000111110000111100');
-$hash = Hash::fromInt('8680820757815655484');
-```
-
-Demo
-----
-
-These images are similar:
-
-![Equals1](https://raw.githubusercontent.com/jenssegers/imagehash/master/tests/images/forest/forest-high.jpg)
-![Equals2](https://raw.githubusercontent.com/jenssegers/imagehash/master/tests/images/forest/forest-copyright.jpg)
-
-	Image 1 hash: 3c3e0e1a3a1e1e1e (0011110000111110000011100001101000111010000111100001111000011110)
-	Image 2 hash: 3c3e0e3e3e1e1e1e (0011110000111110000011100011111000111110000111100001111000011110)
-	Hamming distance: 3
-
-These images are different:
-
-![Equals1](https://raw.githubusercontent.com/jenssegers/imagehash/master/tests/images/office/tumblr_ndyfnr7lk21tubinno1_1280.jpg)
-![Equals2](https://raw.githubusercontent.com/jenssegers/imagehash/master/tests/images/office/tumblr_ndyfq386o41tubinno1_1280.jpg)
-
-	Image 1 hash: 69684858535b7575 (0010100010101000101010001010100010101011001010110101011100110111)
-	Image 2 hash: e1e1e2a7bbaf6faf (0111000011110000111100101101001101011011011101010011010101001111)
-	Hamming distance: 32
-
-## Security contact information
-
-To report a security vulnerability, follow [these steps](https://tidelift.com/security).
+MIT — same as the original library. See [LICENSE.md](LICENSE.md).
