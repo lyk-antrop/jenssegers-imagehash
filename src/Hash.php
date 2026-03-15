@@ -31,7 +31,7 @@ class Hash implements JsonSerializable
     /**
      * Create a hash from an array of bits or a string containing a binary representation of the hash
      *
-     * @param string|array $bits
+     * @param array<int>|string $bits
      *
      * @return self
      */
@@ -52,7 +52,7 @@ class Hash implements JsonSerializable
     public function toHex(): string
     {
         if (\extension_loaded('gmp')) {
-            $gmp = gmp_init('0b'.$this->binaryValue);
+            $gmp = gmp_init('0b' . $this->binaryValue);
 
             return bin2hex(gmp_export($gmp));
         }
@@ -115,7 +115,7 @@ class Hash implements JsonSerializable
     public function distance(Hash $hash): int
     {
         if (\extension_loaded('gmp')) {
-            return gmp_hamdist('0b'.$this->toBits(), '0b'.$hash->toBits());
+            return gmp_hamdist('0b' . $this->toBits(), '0b' . $hash->toBits());
         }
 
         $bits1 = $this->toBits();

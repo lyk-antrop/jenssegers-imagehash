@@ -1,4 +1,6 @@
-<?php namespace Jenssegers\ImageHash\Implementations;
+<?php
+
+namespace Jenssegers\ImageHash\Implementations;
 
 use Jenssegers\ImageHash\Hash;
 use Jenssegers\ImageHash\Implementation;
@@ -29,7 +31,7 @@ class AverageHash implements Implementation
 
         $average = floor(array_sum($pixels) / count($pixels));
 
-        $bits = array_map(fn ($pixel) => (int) ($pixel > $average), $pixels);
+        $bits = array_map(fn($pixel) => (int) ($pixel > $average), $pixels);
 
         return Hash::fromBits($bits);
     }

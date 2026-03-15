@@ -1,4 +1,6 @@
-<?php namespace Jenssegers\ImageHash\Implementations;
+<?php
+
+namespace Jenssegers\ImageHash\Implementations;
 
 use Jenssegers\ImageHash\Hash;
 use Jenssegers\ImageHash\Implementation;

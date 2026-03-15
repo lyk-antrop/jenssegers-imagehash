@@ -158,6 +158,9 @@ class BlockHash implements Implementation
         return $this->blocksToBits($result, $blockWidth * $blockHeight);
     }
 
+    /**
+     * @param array<int|float> $blocks
+     */
     protected function blocksToBits(array $blocks, float $pixelsPerBlock): Hash
     {
         $halfBlockValue = $pixelsPerBlock * 256 * 3 / 2;
@@ -188,6 +191,8 @@ class BlockHash implements Implementation
 
     /**
      * Get the median of the pixel values.
+     *
+     * @param array<int|float> $pixels
      */
     protected function median(array $pixels): float
     {

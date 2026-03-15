@@ -1,4 +1,6 @@
-<?php namespace Jenssegers\ImageHash;
+<?php
+
+namespace Jenssegers\ImageHash;
 
 use Jenssegers\ImageHash\Implementations\DifferenceHash;
 use RuntimeException;

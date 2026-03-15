@@ -1,7 +1,15 @@
 {
     "name": "jenssegers/imagehash",
     "description": "Perceptual image hashing for PHP",
-    "keywords": ["imagehash", "perceptual", "hash", "dhash", "ahash", "phash", "image hash"],
+    "keywords": [
+        "imagehash",
+        "perceptual",
+        "hash",
+        "dhash",
+        "ahash",
+        "phash",
+        "image hash"
+    ],
     "homepage": "https://github.com/jenssegers/imagehash",
     "license": "MIT",
     "authors": [

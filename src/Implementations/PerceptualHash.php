@@ -1,4 +1,6 @@
-<?php namespace Jenssegers\ImageHash\Implementations;
+<?php
+
+namespace Jenssegers\ImageHash\Implementations;
 
 use InvalidArgumentException;
 use Jenssegers\ImageHash\Hash;
@@ -71,6 +73,9 @@ class PerceptualHash implements Implementation
 
     /**
      * Perform a 1-dimension Discrete Cosine Transformation.
+     *
+     * @param array<int|float> $matrix
+     * @return array<float>
      */
     protected function calculateDCT(array $matrix): array
     {
@@ -92,6 +97,7 @@ class PerceptualHash implements Implementation
         return $transformed;
     }
 
+    /** @param array<int|float> $pixels */
     protected function median(array $pixels): float
     {
         sort($pixels, SORT_NUMERIC);
@@ -102,6 +108,7 @@ class PerceptualHash implements Implementation
             : $pixels[(int) floor($n / 2)];
     }
 
+    /** @param array<int|float> $pixels */
     protected function average(array $pixels): float
     {
         // Calculate the average value from top 8×8 pixels, except for the first one.
@@ -114,35 +121,5 @@ class PerceptualHash implements Implementation
     {
         $c = imagecolorat($image, $x, $y);
         return (int) floor((($c >> 16 & 0xFF) * 0.299) + (($c >> 8 & 0xFF) * 0.587) + (($c & 0xFF) * 0.114));
-    }
-}
-
-
-        return $transformed;
-    }
-
-    /**
-     * Get the median of the pixel values.
-     */
-    protected function median(array $pixels): float
-    {
-        sort($pixels, SORT_NUMERIC);
-
-        if (count($pixels) % 2 === 0) {
-            return ($pixels[count($pixels) / 2 - 1] + $pixels[count($pixels) / 2]) / 2;
-        }
-
-        return $pixels[(int) floor(count($pixels) / 2)];
-    }
-
-    /**
-     * Get the average of the pixel values.
-     */
-    protected function average(array $pixels): float
-    {
-        // Calculate the average value from top 8x8 pixels, except for the first one.
-        $n = count($pixels) - 1;
-
-        return array_sum(array_slice($pixels, 1, $n)) / $n;
     }
 }
