@@ -45,26 +45,95 @@ class Hash implements JsonSerializable
     }
 
     /**
-     * Use integers representation and concatenate their hexadecimal representation
+     * Create a hash from a signed 64-bit integer (as stored in a BIGINT column).
+     * The integer is interpreted as a 64-bit two's-complement value.
+     * Negative values are valid — they represent hashes with the MSB set.
+     *
+     * @param int $value
+     *
+     * @return self
+     */
+    public static function fromBigInt(int $value): self
+    {
+        // sprintf('%b') gives the unsigned binary representation on 64-bit PHP.
+        // For positive ints it may be < 64 chars; for negative ints it is exactly 64 chars.
+        // substr(..., -64) trims any hypothetical overflow and str_pad ensures 64-char width.
+        $bits = str_pad(sprintf('%b', $value), 64, '0', STR_PAD_LEFT);
+
+        return new self(substr($bits, -64));
+    }
+
+    /**
+     * Create a hash from a hexadecimal string (as returned by toHex()).
+     *
+     * @param string $hex
+     *
+     * @return self
+     */
+    public static function fromHex(string $hex): self
+    {
+        $bits = '';
+        foreach (str_split($hex) as $char) {
+            $bits .= sprintf('%04b', hexdec($char));
+        }
+
+        return new self($bits);
+    }
+
+    /**
+     * Return the hash as a single signed 64-bit integer, suitable for storage in a BIGINT column.
+     * Only valid for 64-bit hashes (pHash, aHash, dHash). BlockHash (256-bit) will throw.
+     *
+     * @return int
+     *
+     * @throws \RuntimeException if the hash is not exactly 64 bits
+     */
+    public function toBigInt(): int
+    {
+        $integers = $this->getIntegers();
+
+        if (\count($integers) !== 1) {
+            throw new \RuntimeException(sprintf(
+                'toInt() requires a 64-bit hash, but this hash is %d bits (%d integers).',
+                \strlen($this->binaryValue),
+                \count($integers),
+            ));
+        }
+
+        return $integers[0];
+    }
+
+    /**
+     * Use integers representation and concatenate their hexadecimal representation.
+     * Always returns a zero-padded string of length (bits / 4) so that round-trips
+     * via fromHex() are lossless.
      *
      * @return string
      */
     public function toHex(): string
     {
+        // Number of hex characters required for this hash (4 bits per hex digit).
+        $hexLength = (int) ceil(\strlen($this->binaryValue) / 4);
+
         if (\extension_loaded('gmp')) {
             $gmp = gmp_init('0b' . $this->binaryValue);
 
-            return bin2hex(gmp_export($gmp));
+            return str_pad(bin2hex(gmp_export($gmp)), $hexLength, '0', STR_PAD_LEFT);
         }
 
-        return implode(
-            '',
-            array_map(
-                static function (int $int) {
-                    return dechex($int);
-                },
-                $this->getIntegers()
-            )
+        return str_pad(
+            implode(
+                '',
+                array_map(
+                    static function (int $int) {
+                        return dechex($int);
+                    },
+                    $this->getIntegers()
+                )
+            ),
+            $hexLength,
+            '0',
+            STR_PAD_LEFT,
         );
     }
 
