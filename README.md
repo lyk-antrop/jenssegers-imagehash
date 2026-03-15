@@ -11,14 +11,14 @@ no external dependencies beyond `ext-gd`.
 
 ## What Changed vs Upstream
 
-| Area | Upstream | This fork |
-|------|----------|-----------|
-| Image loading | `intervention/image` (GD or Imagick backend) | Direct GD: `imagecreatefromstring()`, `imagescale()`, `imagecolorat()` |
-| Dependencies | `intervention/image` ^3.3, `intervention/gif` (transitive) | **None** — only `ext-gd` |
-| Input types | File path only (`ImageManager::read()`) | File path, URL, raw binary string, or `\GdImage` instance |
-| Implementation interface | `hash(Intervention\Image\Image $image): Hash` | `hash(\GdImage $image): Hash` |
-| PHP version | ^8.2 | >=8.3 |
-| Algorithms | AverageHash, DifferenceHash, PerceptualHash, BlockHash | Same four, same logic, GD pixel access |
+| Area                     | Upstream                                                                          | This fork                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Image loading            | `intervention/image` (GD or Imagick backend)                                    | Direct GD:`imagecreatefromstring()`, `imagescale()`, `imagecolorat()` |
+| Dependencies             | `intervention/image` ^3.3, `intervention/gif` (transitive)                    | **None** — only `ext-gd`                                           |
+| Input types              | File path only (`ImageManager::read()`)                                         | File path, URL, raw binary string, or `\GdImage` instance                 |
+| Implementation interface | `hash(Intervention\Image\Image $image): Hash` | `hash(\GdImage $image): Hash` |                                                                             |
+| PHP version              | ^8.2                                                                              | >=8.3                                                                       |
+| Algorithms               | AverageHash, DifferenceHash, PerceptualHash, BlockHash                            | Same four, same logic, GD pixel access                                      |
 
 ### Why fork?
 
@@ -55,7 +55,7 @@ no external dependencies beyond `ext-gd`.
 
 ## Installation
 
-This library is intended as a Composer VCS fork:
+This library was originally, but not necessarilly, intended as a Composer VCS fork:
 
 ```json
 {
@@ -105,12 +105,12 @@ $distance = $hash1->distance($hash2);
 
 ## Algorithms
 
-| Algorithm | Default Size | Hash Bits | Speed | Discrimination |
-|-----------|-------------|-----------|-------|----------------|
-| `AverageHash` | 8x8 | 64 | Fastest | Low — sensitive to gamma changes |
-| `DifferenceHash` | 9x8 | 64 | Fast | Good for general use |
-| `PerceptualHash` | 32x32 + DCT | 64 | Slower (~10-50ms) | Best — robust to resize, compression, watermarks |
-| `BlockHash` | 16x16 blocks | 256 | Medium | Good — works on full-resolution image |
+| Algorithm          | Default Size | Hash Bits | Speed             | Discrimination                                    |
+| ------------------ | ------------ | --------- | ----------------- | ------------------------------------------------- |
+| `AverageHash`    | 8x8          | 64        | Fastest           | Low — sensitive to gamma changes                 |
+| `DifferenceHash` | 9x8          | 64        | Fast              | Good for general use                              |
+| `PerceptualHash` | 32x32 + DCT  | 64        | Slower (~10-50ms) | Best — robust to resize, compression, watermarks |
+| `BlockHash`      | 16x16 blocks | 256       | Medium            | Good — works on full-resolution image            |
 
 **Recommendation**: Use `PerceptualHash` for image deduplication. Use `DifferenceHash` when
 speed matters more than discrimination.
