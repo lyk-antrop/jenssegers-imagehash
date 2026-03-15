@@ -1,50 +1,36 @@
 <?php namespace Jenssegers\ImageHash;
 
-use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use Intervention\Image\Image;
-use Intervention\Image\ImageManager;
 use Jenssegers\ImageHash\Implementations\DifferenceHash;
 use RuntimeException;
+use InvalidArgumentException;
 
 class ImageHash
 {
     protected Implementation $implementation;
 
-    private ImageManager $driver;
-
-    public function __construct(
-        ?Implementation $implementation = null,
-        ?ImageManager $driver = null
-    ) {
-        $this->implementation = $implementation ?: $this->defaultImplementation();
-        $this->driver = $driver ?: $this->defaultDriver();
+    public function __construct(?Implementation $implementation = null)
+    {
+        $this->implementation = $implementation ?: new DifferenceHash();
     }
 
     /**
      * Calculate a perceptual hash of an image.
-     * @param mixed $image
-     * @return Hash
+     *
+     * @param mixed $image File path, URL, raw image data string, or \GdImage
      */
     public function hash(mixed $image): Hash
     {
-        $image = $this->driver->read($image);
+        $gd = $this->loadImage($image);
 
-        return $this->implementation->hash($image);
+        return $this->implementation->hash($gd);
     }
 
     /**
-     * Compare 2 images and get the hamming distance.
-     * @param mixed $resource1
-     * @param mixed $resource2
-     * @return int
+     * Compare 2 images and return their hamming distance.
      */
     public function compare(mixed $resource1, mixed $resource2): int
     {
-        $hash1 = $this->hash($resource1);
-        $hash2 = $this->hash($resource2);
-
-        return $this->distance($hash1, $hash2);
+        return $this->distance($this->hash($resource1), $this->hash($resource2));
     }
 
     public function distance(Hash $hash1, Hash $hash2): int
@@ -52,26 +38,41 @@ class ImageHash
         return $hash1->distance($hash2);
     }
 
-    protected function createResource(string $data): Image
+    /**
+     * Load any supported image type into a true-color GdImage.
+     *
+     * Accepts:
+     *   - \GdImage instance (passed through as-is)
+     *   - file path or URL (loaded via file_get_contents + imagecreatefromstring)
+     *   - raw image binary string (loaded via imagecreatefromstring)
+     */
+    private function loadImage(mixed $image): \GdImage
     {
-        return $this->driver->read($data);
-    }
+        if ($image instanceof \GdImage) {
+            $gd = $image;
+        } elseif (is_string($image)) {
+            // Treat as path/URL if it doesn't look like raw binary.
+            if (is_file($image) || preg_match('#^https?://#i', $image)) {
+                $data = @file_get_contents($image);
+                if ($data === false) {
+                    throw new RuntimeException("Cannot read image from: {$image}");
+                }
+            } else {
+                // Assume raw binary string.
+                $data = $image;
+            }
 
-    protected function defaultImplementation(): Implementation
-    {
-        return new DifferenceHash();
-    }
-
-    protected function defaultDriver(): ImageManager
-    {
-        if (extension_loaded('imagick')) {
-            return new ImageManager(new ImagickDriver());
+            $gd = @imagecreatefromstring($data);
+            if ($gd === false) {
+                throw new RuntimeException('Cannot create GD image from provided data.');
+            }
+        } else {
+            throw new InvalidArgumentException('Unsupported image source type: ' . get_debug_type($image));
         }
 
-        if (extension_loaded('gd')) {
-            return new ImageManager(new GdDriver());
-        }
+        // Ensure true-color so imagecolorat() returns consistent packed RGB.
+        imagepalettetotruecolor($gd);
 
-        throw new RuntimeException('Please install GD or ImageMagick');
+        return $gd;
     }
 }

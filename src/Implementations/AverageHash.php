@@ -1,8 +1,8 @@
 <?php namespace Jenssegers\ImageHash\Implementations;
 
-use Intervention\Image\Image;
 use Jenssegers\ImageHash\Hash;
 use Jenssegers\ImageHash\Implementation;
+use RuntimeException;
 
 class AverageHash implements Implementation
 {
@@ -13,28 +13,30 @@ class AverageHash implements Implementation
         $this->size = $size;
     }
 
-    public function hash(Image $image): Hash
+    public function hash(\GdImage $image): Hash
     {
-        // Resize the image.
-        $resized = $image->resize($this->size, $this->size);
+        $resized = imagescale($image, $this->size, $this->size);
+        if ($resized === false) {
+            throw new RuntimeException('imagescale failed in AverageHash.');
+        }
 
-        // Create an array of greyscale pixel values.
         $pixels = [];
         for ($y = 0; $y < $this->size; $y++) {
             for ($x = 0; $x < $this->size; $x++) {
-                $rgb = $resized->pickColor($x, $y)->toArray();
-                $pixels[] = (int) floor(($rgb[0] * 0.299) + ($rgb[1] * 0.587) + ($rgb[2] * 0.114));
+                $pixels[] = $this->luminance($resized, $x, $y);
             }
         }
 
-        // Get the average pixel value.
         $average = floor(array_sum($pixels) / count($pixels));
 
-        // Each hash bit is set based on whether the current pixels value is above or below the average.
-        $bits = array_map(function ($pixel) use ($average) {
-            return (int) ($pixel > $average);
-        }, $pixels);
+        $bits = array_map(fn ($pixel) => (int) ($pixel > $average), $pixels);
 
         return Hash::fromBits($bits);
+    }
+
+    private function luminance(\GdImage $image, int $x, int $y): int
+    {
+        $c = imagecolorat($image, $x, $y);
+        return (int) floor((($c >> 16 & 0xFF) * 0.299) + (($c >> 8 & 0xFF) * 0.587) + (($c & 0xFF) * 0.114));
     }
 }

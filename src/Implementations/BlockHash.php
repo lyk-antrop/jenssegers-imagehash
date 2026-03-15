@@ -2,28 +2,20 @@
 
 namespace Jenssegers\ImageHash\Implementations;
 
-use Intervention\Image\Image;
 use InvalidArgumentException;
 use Jenssegers\ImageHash\Hash;
 use Jenssegers\ImageHash\Implementation;
+use RuntimeException;
 
 class BlockHash implements Implementation
 {
-    /**
-     * @var string
-     */
     const PRECISE = 'precise';
-
-    /**
-     * @var string
-     */
     const QUICK = 'quick';
 
     protected string $mode;
-
     protected int $size;
 
-    public function __construct(int $size = 16, $mode = self::PRECISE)
+    public function __construct(int $size = 16, string $mode = self::PRECISE)
     {
         if ($size % 4 !== 0) {
             throw new InvalidArgumentException('Amount of bits needs to be dividable by 4');
@@ -37,7 +29,7 @@ class BlockHash implements Implementation
         $this->mode = $mode;
     }
 
-    public function hash(Image $image): Hash
+    public function hash(\GdImage $image): Hash
     {
         if ($this->mode === self::QUICK) {
             return $this->even($image);
@@ -46,10 +38,10 @@ class BlockHash implements Implementation
         return $this->uneven($image);
     }
 
-    private function even(Image $image): Hash
+    private function even(\GdImage $image): Hash
     {
-        $width = $image->width();
-        $height = $image->height();
+        $width = imagesx($image);
+        $height = imagesy($image);
         $blocksizeX = (int) floor($width / $this->size);
         $blocksizeY = (int) floor($height / $this->size);
 
@@ -63,8 +55,7 @@ class BlockHash implements Implementation
                     for ($ix = 0; $ix < $blocksizeX; $ix++) {
                         $cx = $x * $blocksizeX + $ix;
                         $cy = $y * $blocksizeY + $iy;
-                        $rgb = $image->pickColor($cx, $cy)->toArray();
-                        $value += $rgb[0] + $rgb[1] + $rgb[2];
+                        $value += $this->rgbSum($image, $cx, $cy);
                     }
                 }
 
@@ -75,10 +66,10 @@ class BlockHash implements Implementation
         return $this->blocksToBits($result, $blocksizeX * $blocksizeY);
     }
 
-    private function uneven(Image $image): Hash
+    private function uneven(\GdImage $image): Hash
     {
-        $imageWidth = $image->width();
-        $imageHeight = $image->height();
+        $imageWidth = imagesx($image);
+        $imageHeight = imagesy($image);
         $evenX = $imageWidth % $this->size === 0;
         $evenY = $imageHeight % $this->size === 0;
         $blockWidth = $imageWidth / $this->size;
@@ -114,8 +105,7 @@ class BlockHash implements Implementation
             }
 
             for ($x = 0; $x < $imageWidth; $x++) {
-                $rgb = $image->pickColor($x, $y)->toArray();
-                $value = $rgb[0] + $rgb[1] + $rgb[2];
+                $value = $this->rgbSum($image, $x, $y);
 
                 if ($evenX) {
                     $blockLeft = $blockRight = (int) floor($x / $blockWidth);
@@ -208,5 +198,14 @@ class BlockHash implements Implementation
         }
 
         return $pixels[(int) floor(count($pixels) / 2)];
+    }
+
+    /**
+     * Return the R+G+B channel sum for a single pixel (used for block brightness, not grayscale).
+     */
+    private function rgbSum(\GdImage $image, int $x, int $y): int
+    {
+        $c = imagecolorat($image, $x, $y);
+        return ($c >> 16 & 0xFF) + ($c >> 8 & 0xFF) + ($c & 0xFF);
     }
 }
