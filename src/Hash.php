@@ -84,17 +84,41 @@ class Hash implements JsonSerializable
      * Return the hash as a single signed 64-bit integer, suitable for storage in a BIGINT column.
      * Only valid for 64-bit hashes (pHash, aHash, dHash). BlockHash (256-bit) will throw.
      *
+     * Uses GMP when available to avoid float-precision loss: PHP's bindec() routes through
+     * IEEE 754 double (53-bit mantissa), silently corrupting bits 53–62 of the 64-bit hash.
+     * Two visually distinct images whose hashes share bits 0–52 and bit 63 would be stored
+     * identically without GMP, producing false duplicate matches in BIT_COUNT(XOR) queries.
+     *
      * @return int
      *
      * @throws \RuntimeException if the hash is not exactly 64 bits
      */
     public function toBigInt(): int
     {
+        if (\strlen($this->binaryValue) !== 64) {
+            throw new \RuntimeException(sprintf(
+                'toBigInt() requires a 64-bit hash, but this hash is %d bits.',
+                \strlen($this->binaryValue),
+            ));
+        }
+
+        if (\extension_loaded('gmp')) {
+            // Parse as unsigned 64-bit integer, then sign-extend into PHP's signed int.
+            $unsigned = gmp_init('0b' . $this->binaryValue);
+            $signed   = gmp_cmp($unsigned, gmp_init(PHP_INT_MAX)) > 0
+                ? gmp_sub($unsigned, gmp_pow(gmp_init(2), 64))
+                : $unsigned;
+
+            return gmp_intval($signed);
+        }
+
+        // Fallback without GMP: precision is limited to 53+1 bits (bindec uses double
+        // internally). Bits 53–62 may be corrupted for large hash values.
         $integers = $this->getIntegers();
 
         if (\count($integers) !== 1) {
             throw new \RuntimeException(sprintf(
-                'toInt() requires a 64-bit hash, but this hash is %d bits (%d integers).',
+                'toBigInt() requires a 64-bit hash, but this hash is %d bits (%d integers).',
                 \strlen($this->binaryValue),
                 \count($integers),
             ));
